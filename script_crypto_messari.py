@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""gamescript.py, écrit par Julian Gilquin, le 28/04/2021.
-Dernière mise à jour le 31/05/2021.
+"""script_crypto_messari.py, écrit par Julian Gilquin, le 28/04/2021.
+Dernière mise à jour le 02/06/2021.
 Ce programme permet de récupérer les données de prix d'une cryptomonnaie souhaitée et d'analyser les tendances des moyennes mobiles à 20 et 50 jours, afin de pouvoir sortir un signal d'achat ou de vente.
 """
 
