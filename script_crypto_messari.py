@@ -28,6 +28,11 @@ try:
 except IndexError:
 	asset = input("Entrer une devise : ")
 
+#Recupère les autres arguments si plusieurs ont été renseignés
+if len(sys.argv) > 2:
+	args_de_trop = ", ".join(sys.argv[2:])
+	print(f"{args_de_trop} n'ont pas pu êre traités")
+
 #Récupération des données via l'API de messari
 restest = requests.get(f"https://data.messari.io/api/v1/assets/{asset}/metrics/price/time-series?after={ajd_moins_100}&interval=1d")
 
@@ -103,23 +108,43 @@ if trend_list[1] == "DOWN" and trend_list[2] == "UP":
 evo = round(((closes[0]-closes[1])/closes[1])*100, 2)
 
 #Imprime le taleau recap
-print("\n", db_final.sort_values(["Date"], ascending=[True])[0:19].to_string(index=False))
+recap_title = str(f"Analyse de {asset}\ndate : {ajd}\n\n")
+print(recap_title)
+table = db_final.sort_values(["Date"], ascending=[True])[0:19].to_string(index=False)
+print(table)
 #print("\n"f"CLOSE AU {hier}:", closes[1])
 #Imprime le prix actuel
-print("\nCURRENT:", closes[0], f"({get_trend(evo)} DEPUIS HIER : {evo}%)", "\n")
+current_price = str(f"\n\nCURRENT: {closes[0]}, ({get_trend(evo)} DEPUIS HIER : {evo}%) \n")
+print(current_price)
 #Imprime le texte de recommandation et si jamais le texte de confirmation
-print(reco, "\n")
+printed_reco = str(f"\n{reco} \n")
+print(printed_reco)
 try:
-	print(confirmation_mms, "\n")
+	printed_conf = print(confirmation_mms, "\n")
+	print(printed_conf)
 except:
 	pass
 
-#Prépare et imprime le graph
+#Sauvegarde le tableau et la reco dans un fichier texte
+outF = open(f"tabl_reco_{asset}_{ajd}.txt", "w")
+outF.write(recap_title)
+outF.write(table)
+outF.write(current_price)
+outF.write(printed_reco)
+try:
+	outF.write(printed_conf)
+except:
+	pass
+outF.close()
+
+#Prépare et sauvegarde le graph
 plt.plot(db_final["Date"], db_final["Close"], label="Closes")
 plt.plot(db_final["Date"], db_final["MM20"], label="MM20")
 plt.plot(db_final["Date"], db_final["MM50"], label="MM50")
 plt.xlabel("Date")
+plt.xticks(rotation=90)
 plt.ylabel("Prix en USD")
-plt.title("Visuel")
+plt.title(f"Visuel pour {asset}")
 plt.legend()
+plt.savefig(f"graph_{asset}_{ajd}.png")
 plt.show()
