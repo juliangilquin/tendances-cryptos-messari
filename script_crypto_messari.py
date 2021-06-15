@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """script_crypto_messari.py, écrit par Julian Gilquin, le 28/04/2021.
-Dernière mise à jour le 12/06/2021.
+Dernière mise à jour le 15/06/2021.
 Ce programme permet de récupérer les données de prix d'une cryptomonnaie souhaitée et d'analyser les tendances des moyennes mobiles à 20 et 50 jours, afin de pouvoir sortir un signal d'achat ou de vente.
 """
 
@@ -100,7 +100,10 @@ db_final = pd.DataFrame(
 reco = f"Pas de changement de tendance sur dernier close : {trend_list[1]}"
 if trend_list[1] == "UP" and trend_list[2] == "DOWN":
 	reco = "Signal d'achat. Changement de tendance de DOWN vers UP. Observer le marché pour tendance haussière éventuelle"
-	confirmation_mms = "Confirmation éventuelle pour achat : MM20 à tendance haussière" if var_mm20[1] == "UP" else "Attention, tendance baissière de MM20"
+	if var_mm20[1] == "UP":
+		reco = reco + "\n\nConfirmation éventuelle pour achat : MM20 à tendance haussière"  
+	else: 
+		reco = reco + "\n\nAttention, tendance baissière de MM20"
 if trend_list[1] == "DOWN" and trend_list[2] == "UP":
 	reco = "Signal de vente. Changement de tendance de UP vers DOWN. Observer le marché pour tendance baissière éventuelle"
 
@@ -119,23 +122,21 @@ print(current_price)
 #Imprime le texte de recommandation et si jamais le texte de confirmation
 printed_reco = str(f"\n{reco} \n")
 print(printed_reco)
-try:
-	printed_conf = print(confirmation_mms, "\n")
-	print(printed_conf)
-except:
-	pass
 
-#Sauvegarde le tableau et la reco dans un fichier texte
-outF = open(f"tabl_reco_{asset}_{ajd}.txt", "w")
-outF.write(recap_title)
-outF.write(table)
-outF.write(current_price)
-outF.write(printed_reco)
-try:
-	outF.write(printed_conf)
-except:
-	pass
-outF.close()
+"""
+#Sauvegarde la table dans un fichier html
+outT = open(f"table_{asset}_{ajd}.html", "w")
+outT.write(db_final.sort_values(["Date"], ascending=[True])[0:19].to_html(index=False))
+outT.close()
+"""
+"""
+#Sauvegarde la reco dans un fichier texte
+outR = open(f"reco_{asset}_{ajd}.txt", "w")
+outR.write(recap_title)
+outR.write(current_price)
+outR.write(printed_reco)
+outR.close()
+"""
 
 #Prépare et sauvegarde le graph
 plt.plot(db_final["Date"], db_final["Close"], label="Closes")
@@ -146,5 +147,5 @@ plt.xticks(rotation=90)
 plt.ylabel("Prix en USD")
 plt.title(f"Visuel pour {asset}")
 plt.legend()
-plt.savefig(f"graph_{asset}_{ajd}.png")
+#plt.savefig(f"graph_{asset}_{ajd}.png")
 plt.show()

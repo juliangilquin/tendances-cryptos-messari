@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """get_data_for_backtest.py, écrit par Julian Gilquin, le 14/06/2021.
-Dernière mise à jour le 14/06/2021.
+Dernière mise à jour le 15/06/2021.
 Ce programme permet de récupérer les données de prix d'une cryptomonnaie souhaitée et de les extraire en csv pour backtester la stratégie des moyennes mobiles.
 """
 
