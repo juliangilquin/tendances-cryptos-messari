@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """script_crypto_messari.py, écrit par Julian Gilquin, le 28/04/2021.
-Dernière mise à jour le 23/06/2021.
+Dernière mise à jour le 24/06/2021.
 Ce programme permet de récupérer les données de prix de cryptomonnaies sélectionnées et d'analyser les tendances des moyennes mobiles à 20 et 50 jours, afin de pouvoir sortir un signal d'achat ou de vente.
 Un report pdf est créé pour chaque analyse
 """
@@ -21,9 +21,19 @@ from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+import smtplib, ssl
+import getpass
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-#Liste des cryptos sélectionnées
-assets = ["bitcoin", "ethereum", "cardano", "dogecoin", "ripple", "polkadot", "uniswap", "litecoin", "solana", "chainlink"]
+#Liste des cryptos sélectionnées par défaut
+assets = ["bitcoin", "ethereum", "cardano", "ripple", "polkadot", "uniswap", "litecoin", "solana", "chainlink", "stellar", "eos", "monero", "aave", "kusama", "compound"]
+
+#Si des cryptos sont renseignées au lancement du script, la liste assets utilise uniquement les valeurs renseignées
+if len(sys.argv) > 1:
+	assets = sys.argv[1:]
 
 #Fait le nettoyage des anciens fichiers
 subprocess.call(["sh", "./clean_report_elements.sh"])
@@ -37,6 +47,8 @@ ajd_moins_100 = dates_list[100]
 #Listes des assets Up et Down
 up_assets = []
 down_assets = []
+changing_upwards_assets = []
+changing_downwards_assets = []
 
 #Fonction pour calculer les moyennes mobiles à partir des données de prix
 def mm_list(serie, x):
@@ -103,19 +115,24 @@ for asset in assets:
 			"DIFF MM20-50": ecart_mms[:20]
 			})
 
+		#Classement de l'actif selon sa tendance de la veille
+		if trend_list[1] == "UP":
+			up_assets.append(asset)
+		if trend_list[1] == "DOWN":
+			down_assets.append(asset)
+
 		#Prepare le texte de recommandation selon le contexte final
 		reco = f"Pas de changement de tendance sur dernier close : {trend_list[1]}"
 		if trend_list[1] == "UP" and trend_list[2] == "DOWN":
 			reco = "Signal d'achat. Changement de tendance de DOWN vers UP. Observer le marché pour tendance haussière éventuelle"
-			up_assets.append(asset)
+			changing_upwards_assets.append(asset)
 			if var_mm20[1] == "UP":
 				reco = reco + "\n\nConfirmation éventuelle pour achat : MM20 à tendance haussière"  
 			else: 
 				reco = reco + "\n\nAttention, tendance baissière de MM20"
 		if trend_list[1] == "DOWN" and trend_list[2] == "UP":
 			reco = "Signal de vente. Changement de tendance de UP vers DOWN. Observer le marché pour tendance baissière éventuelle"
-			down_assets.append(asset)
-		print(reco)
+			changing_downwards_assets.append(asset)
 
 		#Calcule l'évolution du prix actuel vs dernier close
 		evo = round(((closes[0]-closes[1])/closes[1])*100, 2)
@@ -209,8 +226,78 @@ for asset in assets:
 
 	time.sleep(0.5)
 
-print("ALERTES CRYPTOS TREND UP")
-print(up_assets)
 
-print("ALERTES CRYPTOS TREND DOWN")
-print(down_assets)
+#Elements de l'email
+sender_mail = "caso.alerts@gmail.com"
+receiver_mail = "caso.alerts@gmail.com"
+
+
+subject = f"Reporting tendances cryptos du {ajd}"
+
+body = f"""
+Hello, 
+
+Ci-joints les reportings des cryptos sélectionnées pour analyse, au {ajd}.
+
+
+
+EN RESUME :
+
+Actifs à tendance haussière : {len(up_assets)}
+{", ".join(up_assets)}
+Actifs à tendance baissière : {len(down_assets)}
+{", ".join(down_assets)}
+
+
+ALERTES CRYPTOS TREND UP : {len(changing_upwards_assets)}
+{", ".join(changing_upwards_assets)}
+ALERTES CRYPTOS TREND DOWN : {len(changing_downwards_assets)}
+{", ".join(changing_downwards_assets)}
+
+Ceci ne constitue en aucun cas un conseil d'investissement. 
+Ces informations sont uniquement à titre indicatif et ne reposent sur aucune expertise.
+
+Bonne lecture."""
+
+port = 465 #SSL
+password = getpass.getpass(prompt="MDP de boite mail pour envoi du mail: \n")
+
+#Creation du mail et headers
+message = MIMEMultipart()
+message["From"] = sender_mail
+message["To"] = receiver_mail
+message["Subject"] = subject
+message["Bcc"] = receiver_mail
+
+#Corps du mail
+message.attach(MIMEText(body, "plain"))
+
+#Ajout des docs pdf en pj
+for asset in assets:
+	try:
+		#Gestion de la pj
+		filename = f"Report_{asset}_{ajd}.pdf"
+		with open(filename, "rb") as attachment:
+			part = MIMEBase("application", "octet-stream")
+			part.set_payload(attachment.read())
+
+		#Encodage pj, ajout info dans headers du mail, ajout de la pj au message
+		encoders.encode_base64(part)
+		part.add_header("Content-Disposition", f"attachment; filename= {filename}")
+		message.attach(part)
+	except:
+		print(f"Erreur lors de l'envoi du reporting de {asset}")
+
+#Conversion du message en texte
+text = message.as_string()
+
+
+#Creation context SSL secure
+context = ssl.create_default_context()
+
+with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+	server.login(sender_mail, password)
+	server.sendmail(sender_mail, receiver_mail, text)
+
+print(f"e-mail envoyé avec succès à {receiver_mail}")
+print("Fin du programme")
